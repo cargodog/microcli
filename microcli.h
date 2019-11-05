@@ -4,16 +4,17 @@
 #include "microcli_verbosity.h"
 #include <stdbool.h>
 
-// Console errors
+// Error codes
 typedef enum {
     MICROCLI_ERR_UNKNOWN = -128,
+    MICROCLI_ERR_BUSY,
     MICROCLI_ERR_BAD_ARG,
     MICROCLI_ERR_OVERFLOW,
     MICROCLI_ERR_OUT_OF_BOUNDS,
     MICROCLI_ERR_CMD_NOT_FOUND,
     MICROCLI_ERR_NO_DATA,
     MICROCLI_ERR_MAX
-} ConsoleErr_t;
+} MicroCLIErr_t;
 _Static_assert(MICROCLI_ERR_MAX < 0, "Some MicroCLI error codes are non-negative!");
 
 // I/O function types
@@ -48,6 +49,7 @@ typedef struct {
     struct {
         char buffer[MAX_CLI_INPUT_LEN];
         unsigned int len;
+        bool ready;
     } input;
 } MicroCLI_t;
 
@@ -58,7 +60,7 @@ void    microcli_set_verbosity(MicroCLI_t * ctx, int verbosity);
 void microcli_interpreter_tick(MicroCLI_t * ctx);
 
 // Input
-int microcli_parse_cmd(MicroCLI_t * ctx);
+int microcli_interpret_string(MicroCLI_t * ctx, const char * str, bool print);
 
 // Output
 int    microcli_banner(MicroCLI_t * ctx);

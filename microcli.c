@@ -15,46 +15,33 @@ static void insert_spaces(MicroCLI_t * ctx, int num)
     }
 }
 
-static int find_cmd_in_table(MicroCLI_t * ctx, const char * name)
+static int lookup_command(MicroCLI_t * ctx)
 {
     assert(ctx);
-    assert(name);
     assert(ctx->cfg.cmdTable);
     assert(ctx->cfg.cmdCount >= 0);
 
     for(unsigned int i = 0; i < ctx->cfg.cmdCount; i++) {
-        if(0 == strcmp(name, ctx->cfg.cmdTable[i].name))
+        if(0 == strcmp(ctx->input.buffer, ctx->cfg.cmdTable[i].name))
             return i;
     }
 
     return MICROCLI_ERR_CMD_NOT_FOUND;
 }
 
-void microcli_init(MicroCLI_t * ctx, const MicroCLICfg_t * cfg)
+static inline void prompt_for_input(MicroCLI_t * ctx)
 {
     assert(ctx);
-    assert(cfg);
-    assert(cfg->io.printf);
-    assert(cfg->io.getchar);
-    assert(cfg->bannerText);
-    assert(cfg->promptText);
-    assert(cfg->cmdTable);
-    assert(cfg->cmdCount >= 0);
 
-    *ctx = (MicroCLI_t){0};
-
-    ctx->cfg = *cfg;
-    ctx->verbosity = DEFAULT_VERBOSITY;
+    // Only display prompt once per command
+    if(ctx->prompted == false) {
+        microcli_log(ctx, ctx->cfg.promptText);
+        ctx->prompted = true;
+    }
 }
 
-void microcli_set_verbosity(MicroCLI_t * ctx, int verbosity)
-{
-    assert(ctx);
-    assert(verbosity <= VERBOSITY_LEVEL_MAX);
-    ctx->verbosity = verbosity;
-}
-
-int microcli_parse_cmd(MicroCLI_t * ctx)
+// Fill input buffer from IO stream. Return true when buffer is ready to process.
+static void read_from_io(MicroCLI_t * ctx)
 {
     #if MAX_ALLOWED_VERBOSITY > VERBOSITY_LEVEL_DISABLED
         assert(ctx);
@@ -93,24 +80,41 @@ int microcli_parse_cmd(MicroCLI_t * ctx)
         }
 
         // No more data to process. Wait for more data.
-        if(buffer[ctx->input.len] == 0)
-            return MICROCLI_ERR_NO_DATA;
+        if(buffer[ctx->input.len] == 0) {
+            ctx->input.ready = false;
+        } else {
+            // Replace escape character with null terminator
+            buffer[ctx->input.len] = 0;
+            ctx->cfg.io.printf("\n\r");
 
-        // Replace escape character with null terminator
-        buffer[ctx->input.len] = 0;
-        ctx->cfg.io.printf("\n\r");
-
-        // Lookup and run command (if found)
-        int cmdIdx = find_cmd_in_table(ctx, buffer);
-
-        // Reset input buffer
-        memset(&ctx->input, 0, sizeof(ctx->input));
-
-        // Return index of command (if found)
-        return cmdIdx;
-    #else
-        return 0;
+            // Command entry is complete. Input buffer is ready to be processed
+            ctx->input.ready = true;
+        }
     #endif
+}
+
+void microcli_init(MicroCLI_t * ctx, const MicroCLICfg_t * cfg)
+{
+    assert(ctx);
+    assert(cfg);
+    assert(cfg->io.printf);
+    assert(cfg->io.getchar);
+    assert(cfg->bannerText);
+    assert(cfg->promptText);
+    assert(cfg->cmdTable);
+    assert(cfg->cmdCount >= 0);
+
+    *ctx = (MicroCLI_t){0};
+
+    ctx->cfg = *cfg;
+    ctx->verbosity = DEFAULT_VERBOSITY;
+}
+
+void microcli_set_verbosity(MicroCLI_t * ctx, int verbosity)
+{
+    assert(ctx);
+    assert(verbosity <= VERBOSITY_LEVEL_MAX);
+    ctx->verbosity = verbosity;
 }
 
 void microcli_interpreter_tick(MicroCLI_t * ctx)
@@ -121,24 +125,66 @@ void microcli_interpreter_tick(MicroCLI_t * ctx)
         assert(ctx->cfg.io.getchar);
         assert(ctx->cfg.promptText);
 
-        // Display prompt once per command
-        if(ctx->prompted == false) {
-            ctx->cfg.io.printf(ctx->cfg.promptText);
-            ctx->prompted = true;
-        }
+        // If input buffer does not contain a command, read more data from IO
+        if(!ctx->input.ready) {
+            // Prompt user for input
+            prompt_for_input(ctx);
 
-        // Process input data for command
-        int i = microcli_parse_cmd(ctx);
-        if(i >= 0 && i < ctx->cfg.cmdCount) {
-            ctx->cfg.cmdTable[i].cmd();
-            ctx->cfg.io.printf("\n\r");
+            // Read user input from IO
+            read_from_io(ctx);
         }
         
-        // Reset prompt unless waiting for more data
-        if(i != MICROCLI_ERR_NO_DATA) {
+        // If the input buffer contains a command, process it.
+        if(ctx->input.ready) {
+            // Lookup and run command (if found)
+            int cmdIdx = lookup_command(ctx);
+            if(cmdIdx >= 0 && cmdIdx < ctx->cfg.cmdCount) {
+                ctx->cfg.cmdTable[cmdIdx].cmd();
+                ctx->cfg.io.printf("\n\r");
+            }
+
+            // Reset prompt
             ctx->prompted = false;
         }
+
+        // Reset the prompt, after processing a command
+        if(ctx->input.ready) {
+            memset(&ctx->input, 0, sizeof(ctx->input));
+            ctx->prompted = false;
+        }
+        
     #endif
+}
+
+int microcli_interpret_string(MicroCLI_t * ctx, const char * str, bool print)
+{
+    assert(ctx);
+    assert(str);
+
+    if(strlen(str) > sizeof(ctx->input.buffer))
+        return MICROCLI_ERR_OVERFLOW;
+
+    if( (ctx->input.len > 0) || ctx->input.ready )
+        return MICROCLI_ERR_BUSY;
+    
+    // Copy string into the command input buffer
+    strcpy(ctx->input.buffer, str);
+    ctx->input.len = strlen(str);
+    ctx->input.ready = true;
+    
+    // Optionally print the command to the cli output
+    if(print) {
+        // Display the prompt, before printing the command
+        prompt_for_input(ctx);
+        
+        // Print the command to the console
+        microcli_log(ctx, "%s\n\r", str);
+    }
+
+    // Tick the interpreter to process the command
+    microcli_interpreter_tick(ctx);
+
+    return 0;
 }
 
 int microcli_banner(MicroCLI_t * ctx)
