@@ -15,14 +15,42 @@ static void insert_spaces(MicroCLI_t * ctx, int num)
     }
 }
 
+static inline int cmd_len(const char * cmdStr)
+{
+    assert(cmdStr);
+
+    int inLen = strlen(cmdStr);
+    int i = 0;
+    for(i = 0; i < inLen; i++) {
+        if(cmdStr[i] == ' ')
+            break;
+    }
+
+    return i;
+}
+
 static int lookup_command(MicroCLI_t * ctx)
 {
     assert(ctx);
     assert(ctx->cfg.cmdTable);
     assert(ctx->cfg.cmdCount >= 0);
 
-    for(unsigned int i = 0; i < ctx->cfg.cmdCount; i++) {
-        if(0 == strcmp(ctx->input.buffer, ctx->cfg.cmdTable[i].name))
+    // Loop through each possible command
+    int i = ctx->cfg.cmdCount;
+    while(i-- > 0) {
+        // Compare the input command (delimited by a space) to
+        // the command in the table
+        bool diff = false;
+        int j = strlen(ctx->cfg.cmdTable[i].name);
+        if(j > cmd_len(ctx->input.buffer))
+            continue;
+        
+        while(j-- > 0 && !diff) {
+            if(ctx->input.buffer[j] != ctx->cfg.cmdTable[i].name[j])
+                diff = true;
+        }
+
+        if(!diff)
             return i;
     }
 
@@ -143,8 +171,9 @@ void microcli_interpreter_tick(MicroCLI_t * ctx)
     if(ctx->input.ready) {
         // Lookup and run command (if found)
         int cmdIdx = lookup_command(ctx);
+        const char * args = ctx->input.buffer + cmd_len(ctx->input.buffer) + 1;
         if(cmdIdx >= 0 && cmdIdx < ctx->cfg.cmdCount) {
-            ctx->cfg.cmdTable[cmdIdx].cmd();
+            ctx->cfg.cmdTable[cmdIdx].cmd(args);
             ctx->cfg.io.printf("\n\r");
         }
 

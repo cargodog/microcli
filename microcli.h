@@ -22,7 +22,7 @@ typedef int (*Printf_t)(const char * fmt, ...);
 typedef int (*Getchar_t)(void);
 
 // Command function type
-typedef int (*MicroCLICmd_t)(void);
+typedef int (*MicroCLICmd_t)(const char * args);
 typedef struct {
     const char * name;
     MicroCLICmd_t cmd;
