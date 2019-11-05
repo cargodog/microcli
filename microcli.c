@@ -79,6 +79,13 @@ static void read_from_io(MicroCLI_t * ctx)
         }
     }
 
+    // If buffer is full, delete last char to make room for more input
+    if(ctx->input.len == sizeof(ctx->input.buffer)) {
+        ctx->cfg.io.printf("\b");
+        ctx->input.len--;
+        buffer[ctx->input.len] = 0;
+    }
+
     // No more data to process. Wait for more data.
     if(buffer[ctx->input.len] == 0) {
         ctx->input.ready = false;
