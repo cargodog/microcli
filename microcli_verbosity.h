@@ -16,13 +16,6 @@
 #define MAX_ALLOWED_VERBOSITY VERBOSITY_LEVEL_MAX
 #endif
 
-#ifndef MAX_CLI_INPUT_LEN
-#define MAX_CLI_INPUT_LEN 256
-#endif
-#ifndef MAX_CLI_CMD_LEN
-#define MAX_CLI_CMD_LEN 20
-#endif
-
 
 #define PRINT_HELPER(v, ctx, fmt, ... )\
 {\

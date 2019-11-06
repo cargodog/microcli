@@ -1,6 +1,7 @@
 #ifndef _MICROCLI_H_
 #define _MICROCLI_H_
 
+#include "microcli_config.h"
 #include "microcli_verbosity.h"
 #include <stdbool.h>
 
@@ -29,6 +30,13 @@ typedef struct {
     const char * help;
 } MicroCLICmdEntry_t;
 
+// Input history list entry type
+struct MicroCLIHistEntry {
+    char * str;
+    struct MicroCLIHistEntry * newer;
+    struct MicroCLIHistEntry * older;
+};
+
 // CLI configuration
 typedef struct {
     struct {
@@ -37,8 +45,8 @@ typedef struct {
     } io;
     const char * bannerText;
     const char * promptText;
-    const MicroCLICmdEntry_t *cmdTable;
-    int cmdCount;
+    const MicroCLICmdEntry_t * cmdTable;
+    unsigned int cmdCount;
 } MicroCLICfg_t;
 
 // CLI context object
@@ -47,10 +55,12 @@ typedef struct {
     int verbosity;
     bool prompted;
     struct {
-        char buffer[MAX_CLI_INPUT_LEN];
+        char buffer[MAX_CLI_INPUT_LEN + 1];
         unsigned int len;
         bool ready;
     } input;
+    struct MicroCLIHistEntry * history;
+    unsigned int historySize;
 } MicroCLI_t;
 
 
