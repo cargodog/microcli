@@ -1,6 +1,6 @@
 #include "microcli.h"
 #include <stdbool.h>
-#include <stdarg.h>
+// #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
 
@@ -74,7 +74,7 @@ static inline void save_input_to_history(MicroCLI_t * ctx)
         assert(ctx->input.len <= MAX_CLI_INPUT_LEN); // Input overflow?
         assert(ctx->input.buffer[ctx->input.len-1] == 0); // Null terminated?
 
-        static const unsigned int NODE_SIZE = sizeof(struct MicroCLIHistEntry);
+        static const unsigned int NODE_SIZE = sizeof(MicroCLIHistoryEntry_t);
 
         // Abort if this entry is too large to possibly be stored
         if(ctx->input.len > MICRICLI_MAX_HISTORY_MEM - NODE_SIZE)
@@ -85,7 +85,7 @@ static inline void save_input_to_history(MicroCLI_t * ctx)
             return;
         
         // Seek last history entry
-        struct MicroCLIHistEntry * last = ctx->history;
+        MicroCLIHistoryEntry_t * last = ctx->history;
         while(last && last->older) {
             assert(last != last->older); // Circular reference?
             last = last->older;
@@ -96,7 +96,7 @@ static inline void save_input_to_history(MicroCLI_t * ctx)
 
         // Free older entries, to prevent exceeding history max mem
         while(last && ctx->historySize > MICRICLI_MAX_HISTORY_MEM) {
-            struct MicroCLIHistEntry * this = last;
+            MicroCLIHistoryEntry_t * this = last;
 
             // Trim the last node from the list
             last = last->newer;
@@ -119,7 +119,7 @@ static inline void save_input_to_history(MicroCLI_t * ctx)
         }
 
         // Allocate memory for new list node
-        struct MicroCLIHistEntry * newEntry = MICROCLI_MALLOC(NODE_SIZE);
+        MicroCLIHistoryEntry_t * newEntry = MICROCLI_MALLOC(NODE_SIZE);
         assert(newEntry); // Malloc failure?
 
         // Insert new list node at front of list
@@ -169,7 +169,7 @@ static inline void clear_prompt(MicroCLI_t * ctx)
 }
 
 static inline void print_history_entry( MicroCLI_t * ctx,
-                                        struct MicroCLIHistEntry * entry)
+                                        MicroCLIHistoryEntry_t * entry)
 {
     assert(ctx);
     assert(ctx->cfg.io.printf);
@@ -183,7 +183,6 @@ static inline void print_history_entry( MicroCLI_t * ctx,
     ctx->cfg.io.printf("%s", entry->str);
 }
 
-// Fill input buffer from IO stream. Return true when buffer is ready to process.
 static void read_from_io(MicroCLI_t * ctx)
 {
     assert(ctx);
@@ -194,7 +193,7 @@ static void read_from_io(MicroCLI_t * ctx)
     char * buffer = ctx->input.buffer;
 
     // Current history entry
-    static struct MicroCLIHistEntry * hist = 0;
+    static MicroCLIHistoryEntry_t * hist = 0;
 
     // Loop through all available data
     while(ctx->input.len < (sizeof(ctx->input.buffer) - 1)) {
@@ -341,7 +340,7 @@ void microcli_interpreter_tick(MicroCLI_t * ctx)
         int cmdIdx = lookup_command(ctx);
         const char * args = ctx->input.buffer + cmd_len(ctx->input.buffer) + 1;
         if(cmdIdx >= 0 && cmdIdx < ctx->cfg.cmdCount) {
-            ctx->cfg.cmdTable[cmdIdx].cmd(args);
+            ctx->cfg.cmdTable[cmdIdx].cmd(ctx, args);
             ctx->cfg.io.printf("\n\r");
         }
 

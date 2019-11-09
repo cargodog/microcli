@@ -5,6 +5,7 @@
 #include "microcli_verbosity.h"
 #include <stdbool.h>
 
+
 // Error codes
 typedef enum {
     MICROCLI_ERR_UNKNOWN = -128,
@@ -18,27 +19,33 @@ typedef enum {
 } MicroCLIErr_t;
 _Static_assert(MICROCLI_ERR_MAX < 0, "Some MicroCLI error codes are non-negative!");
 
-// I/O function types
+
+// Typedefs
+typedef struct microcliHistoryEntry MicroCLIHistoryEntry_t;
+typedef struct microcliCmdEntry     MicroCLICmdEntry_t;
+typedef struct microcliCfg          MicroCLICfg_t;
+typedef struct microcliCtx          MicroCLI_t;
+
+// Command function prototype
+typedef int (*MicroCLICmd_t)(MicroCLI_t * ctx, const char * args);
+
+// I/O function prototypes
 typedef int (*Printf_t)(const char * fmt, ...);
 typedef int (*Getchar_t)(void);
 
-// Command function type
-typedef int (*MicroCLICmd_t)(const char * args);
-typedef struct {
-    const char * name;
+struct microcliCmdEntry {
     MicroCLICmd_t cmd;
+    const char * name;
     const char * help;
-} MicroCLICmdEntry_t;
-
-// Input history list entry type
-struct MicroCLIHistEntry {
-    char * str;
-    struct MicroCLIHistEntry * newer;
-    struct MicroCLIHistEntry * older;
 };
 
-// CLI configuration
-typedef struct {
+struct microcliHistoryEntry {
+    char * str;
+    MicroCLIHistoryEntry_t * newer;
+    MicroCLIHistoryEntry_t * older;
+};
+
+struct microcliCfg {
     struct {
         Printf_t printf;
         Getchar_t getchar; // Note: should return < 0 when no more data available
@@ -47,10 +54,9 @@ typedef struct {
     const char * promptText;
     const MicroCLICmdEntry_t * cmdTable;
     unsigned int cmdCount;
-} MicroCLICfg_t;
+};
 
-// CLI context object
-typedef struct {
+struct microcliCtx {
     MicroCLICfg_t cfg;
     int verbosity;
     bool prompted;
@@ -59,9 +65,9 @@ typedef struct {
         unsigned int len;
         bool ready;
     } input;
-    struct MicroCLIHistEntry * history;
+    MicroCLIHistoryEntry_t * history;
     unsigned int historySize;
-} MicroCLI_t;
+};
 
 
 // Control
