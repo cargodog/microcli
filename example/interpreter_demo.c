@@ -2,13 +2,15 @@
 #include <stdio.h>
 
 
-int poke(void);
-int help(void);
+#define CMD_ENTRY(fn, help) {fn, #fn, help}
+
+int poke(MicroCLI_t * ctx, const char * args);
+int help(MicroCLI_t * ctx, const char * args);
 
 MicroCLI_t dbg;
 const MicroCLICmdEntry_t cmdTable[] = {
-    {"poke", poke, "Poke the poor circuit"},
-    {"help", help, "Print this help message"},
+    CMD_ENTRY(help, "Print this help message"),
+    CMD_ENTRY(poke, "Poke the poor circuit"),
 };
 const MicroCLICfg_t dbgCfg = {
     .bannerText = "\r\n\n\n\nMicroCLI Interpreter Demo\r\n",
@@ -20,15 +22,15 @@ const MicroCLICfg_t dbgCfg = {
 };
 
 
-int poke(void)
+int poke(MicroCLI_t * ctx, const char * args)
 {
-    microcli_log(&dbg, "ouch!\n\r");
+    microcli_log(ctx, "ouch!\n\r");
     return 0;
 }
 
-int help(void)
+int help(MicroCLI_t * ctx, const char * args)
 {
-    return microcli_help(&dbg);
+    return microcli_help(ctx);
 }
 
 int main(void)
